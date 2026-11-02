@@ -1,0 +1,23 @@
+[workspace]
+members = ["engine", "game"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+# Every dependency is listed once, here, with its version.
+# The crates use them with `name.workspace = true`.
+[workspace.dependencies]
+tinr_engine = { path = "engine" }
+macroquad = "=0.4.16"
+# The same glam version Macroquad uses, so a Vec2 is the same type everywhere.
+glam = "0.27"
+
+# Only the ECS from Bevy; "std" without the optional extras (reflection, multithreading).
+bevy_ecs = { version = "=0.20.1", default-features = false, features = ["std"] }
+
+# bevy_ecs and Macroquad are slow when unoptimized; optimize dependencies even in debug builds.
+# Your own crates stay fast to compile.
+[profile.dev.package."*"]
+opt-level = 2

@@ -1,0 +1,8 @@
+[package]
+name = "tinr_game"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tinr_engine.workspace = true
+macroquad.workspace = true

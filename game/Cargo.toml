@@ -5,4 +5,4 @@ edition.workspace = true
 
 [dependencies]
 tinr_engine.workspace = true
-macroquad.workspace = true
+tinr_platform.workspace = true

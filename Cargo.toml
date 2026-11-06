@@ -1,5 +1,5 @@
 [workspace]
-members = ["engine", "game"]
+members = ["engine", "platform", "game"]
 resolver = "3"
 
 [workspace.package]
@@ -10,6 +10,7 @@ edition = "2024"
 # The crates use them with `name.workspace = true`.
 [workspace.dependencies]
 tinr_engine = { path = "engine" }
+tinr_platform = { path = "platform" }
 macroquad = "=0.4.16"
 # The same glam version Macroquad uses, so a Vec2 is the same type everywhere.
 glam = "0.27"

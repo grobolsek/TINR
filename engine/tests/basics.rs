@@ -76,3 +76,47 @@ fn a_schedule_runs_systems_in_order() {
     assert!((world.get::<Transform>(e).unwrap().pos.x - 60.0).abs() < 1e-3);
     assert_eq!(world.resource::<Log>().0[..2], ["before", "after: 1 moved"]);
 }
+
+#[test]
+fn the_app_runs_one_phase_at_a_time() {
+    use tinr_engine::app::{App, phase};
+    use tinr_engine::transform::{Transform, Velocity, integrate};
+
+    let mut app = App::new(60);
+    app.add_systems(phase::Simulate, integrate);
+    let e = app.world.spawn((Transform::default(), Velocity::new(60.0, 0.0))).id();
+
+    app.world.resource_mut::<Time>().advance_tick();
+    app.world.run_schedule(phase::Decide); // nothing registered there yet
+    assert_eq!(app.world.get::<Transform>(e).unwrap().pos.x, 0.0);
+    app.world.run_schedule(phase::Simulate);
+    assert_eq!(app.world.get::<Transform>(e).unwrap().pos.x, 1.0);
+}
+
+#[test]
+fn frames_at_144_fps_run_a_tick_every_second_or_third_frame() {
+    use tinr_engine::app::App;
+
+    let mut app = App::new(60);
+    let mut ticks = Vec::new();
+    let mut alphas = Vec::new();
+    for _ in 0..7 {
+        ticks.push(app.frame(1.0 / 144.0));
+        alphas.push((app.world.resource::<Time>().alpha * 100.0).round() / 100.0);
+    }
+    assert_eq!(ticks, [0, 0, 1, 0, 1, 0, 0]);
+    assert_eq!(alphas, [0.42, 0.83, 0.25, 0.67, 0.08, 0.5, 0.92]);
+}
+
+#[test]
+fn a_long_freeze_runs_at_most_five_ticks_and_pause_runs_none() {
+    use tinr_engine::app::App;
+
+    let mut app = App::new(60);
+    assert_eq!(app.frame(3.0), 5); // 3 s would be 180 ticks; capped to 0.25 s, then to 5
+    assert_eq!(app.frame(1.0 / 60.0), 1); // the rest was dropped, not carried over
+
+    app.world.resource_mut::<Time>().paused = true;
+    assert_eq!(app.frame(1.0 / 60.0), 0);
+    assert_eq!(app.world.resource::<Time>().tick, 6);
+}

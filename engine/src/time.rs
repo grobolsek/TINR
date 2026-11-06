@@ -32,7 +32,7 @@ impl Time {
             fixed_dt: 1.0 / fixed_hz as f64,
             dt: 0.0,
             alpha: 0.0,
-            scale: 0.0,
+            scale: 1.0,
             paused: false,
             frame: 0,
             real_dt: 0.0,

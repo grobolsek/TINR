@@ -120,3 +120,21 @@ fn a_long_freeze_runs_at_most_five_ticks_and_pause_runs_none() {
     assert_eq!(app.frame(1.0 / 60.0), 0);
     assert_eq!(app.world.resource::<Time>().tick, 6);
 }
+
+#[test]
+fn every_transform_gets_a_previous_position_for_drawing() {
+    use tinr_engine::app::{App, phase};
+    use tinr_engine::transform::{PrevTransform, Transform, Velocity, integrate, store_previous};
+
+    let mut app = App::new(60);
+    app.add_systems(phase::Decide, store_previous);
+    app.add_systems(phase::Simulate, integrate);
+    // PrevTransform is not spawned here: Transform requires it, so bevy adds it.
+    let e = app.world.spawn((Transform::at(0.0, 0.0), Velocity::new(60.0, 0.0))).id();
+    assert_eq!(app.world.get::<PrevTransform>(e).unwrap().0, None);
+
+    app.tick();
+    // Decide stored the old position, then Simulate moved the entity.
+    assert_eq!(app.world.get::<PrevTransform>(e).unwrap().0, Some(tinr_engine::Vec2::ZERO));
+    assert_eq!(app.world.get::<Transform>(e).unwrap().pos.x, 1.0);
+}

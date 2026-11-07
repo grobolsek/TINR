@@ -4,10 +4,11 @@
 pub const NAME: &str = "FRI the ninja";
 
 pub mod app;
-/// The engine's time structure
+pub mod render;
 pub mod time;
 pub mod transform;
 
+pub use bevy_ecs;
 pub use glam::Vec2;
 
 #[cfg(test)]

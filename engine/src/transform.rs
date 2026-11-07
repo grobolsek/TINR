@@ -5,8 +5,9 @@ use bevy_ecs::prelude::*;
 use crate::Vec2;
 use crate::time::Time;
 
-/// Position in the world.
+/// Position in the world. Every Transform automatically gets a PrevTransform.
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
+#[require(PrevTransform)]
 pub struct Transform {
     pub pos: Vec2,
 }
@@ -16,6 +17,11 @@ impl Transform {
         Self { pos: Vec2::new(x, y) }
     }
 }
+
+/// Where the entity was at the start of the current tick; the renderer
+/// draws between this and Transform. None until the first tick.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
+pub struct PrevTransform(pub Option<Vec2>);
 
 /// Units per second.
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
@@ -35,5 +41,12 @@ pub fn integrate(time: Res<Time>, mut movers: Query<(&mut Transform, &Velocity)>
 
     for (mut t, v) in &mut movers {
         t.pos += v.v * dt;
+    }
+}
+
+/// System (Decide, first): remember where everything is before it moves.
+pub fn store_previous(mut q: Query<(&Transform, &mut PrevTransform)>) {
+    for (t, mut prev) in &mut q {
+        prev.0 = Some(t.pos);
     }
 }

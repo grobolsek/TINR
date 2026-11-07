@@ -12,11 +12,13 @@ pub struct Config {
     pub title: String,
     pub window_size: (i32, i32),
     pub fixed_hz: u32,
+    /// Path to the sprite atlas PNG. Sprites with a `region` are cut from it.
+    pub atlas: Option<String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { title: "TINR".into(), window_size: (800, 600), fixed_hz: 60 }
+        Self { title: "TINR".into(), window_size: (800, 600), fixed_hz: 60, atlas: None }
     }
 }
 
@@ -25,7 +27,7 @@ impl Default for Config {
 /// Command line: `--frames N` stops after N frames of exactly 1/60 s,
 /// `--screenshot out.png` saves the last frame.
 pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
-    let Config { title, window_size: (w, h), fixed_hz } = config;
+    let Config { title, window_size: (w, h), fixed_hz, atlas } = config;
     let args = Args::parse();
     let conf = Conf {
         window_title: title.to_string(),
@@ -35,6 +37,16 @@ pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
     };
 
     macroquad::Window::from_config(conf, async move {
+        if let Some(path) = &atlas {
+            match load_texture(path).await {
+                Ok(tex) => {
+                    tex.set_filter(FilterMode::Nearest); // crisp pixel art
+                    ATLAS.with(|a| *a.borrow_mut() = Some(tex));
+                }
+                Err(e) => eprintln!("could not load atlas {path}: {e}"),
+            }
+        }
+
         let mut app = App::new(fixed_hz);
         app.add_systems(phase::Render, draw_sprites);
         setup(&mut app);
@@ -54,6 +66,11 @@ pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
             next_frame().await;
         }
     });
+}
+
+// The atlas texture. Kept outside the World for now; Macroquad draws on one thread.
+thread_local! {
+    static ATLAS: std::cell::RefCell<Option<Texture2D>> = const { std::cell::RefCell::new(None) };
 }
 
 struct Args {
@@ -85,12 +102,28 @@ fn draw_sprites(time: Res<Time>, sprites: Query<(&Transform, &PrevTransform, &Sp
     for (t, prev, sprite) in list {
         let from = prev.0.unwrap_or(t.pos);
         let p = from.lerp(t.pos, alpha) + center;
+        let s = sprite.size;
+        if let Some([x, y, w, h]) = sprite.region {
+            let drawn = ATLAS.with(|a| {
+                let Some(tex) = &*a.borrow() else { return false };
+                let params = DrawTextureParams {
+                    dest_size: Some(vec2(s.x, s.y)),
+                    source: Some(Rect::new(x, y, w, h)),
+                    ..Default::default()
+                };
+                draw_texture_ex(tex, p.x - s.x / 2.0, p.y - s.y / 2.0, WHITE, params);
+                true
+            });
+            if drawn {
+                continue;
+            }
+            // No atlas loaded: fall through and draw the colored shape instead.
+        }
         let [r, g, b] = sprite.color;
         let color = Color::from_rgba(r, g, b, 255);
         match sprite.shape {
             Shape::Circle => draw_circle(p.x, p.y, sprite.radius, color),
             Shape::Rect => {
-                let s = sprite.size;
                 draw_rectangle(p.x - s.x / 2.0, p.y - s.y / 2.0, s.x, s.y, color);
             }
         }

@@ -20,6 +20,8 @@ pub struct Sprite {
     pub color: [u8; 3],
     /// Higher layers are drawn on top.
     pub layer: i32,
+    /// Part of the atlas image to draw, in pixels: [x, y, w, h]. None = draw `shape` in `color`.
+    pub region: Option<[f32; 4]>,
 }
 
 impl Default for Sprite {
@@ -30,6 +32,7 @@ impl Default for Sprite {
             radius: 16.0,
             color: [255, 0, 0],
             layer: 0,
+            region: None,
         }
     }
 }
@@ -37,6 +40,12 @@ impl Default for Sprite {
 impl Sprite {
     pub fn rect(w: f32, h: f32, color: [u8; 3]) -> Self {
         Self { shape: Shape::Rect, size: Vec2::new(w, h), color, ..Default::default() }
+    }
+
+    /// A picture cut from the atlas at pixel rect (x, y, w, h), drawn at its own size.
+    /// Change `size` afterwards to scale it.
+    pub fn atlas(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Self { size: Vec2::new(w, h), region: Some([x, y, w, h]), ..Default::default() }
     }
 
     pub fn circle(radius: f32, color: [u8; 3]) -> Self {

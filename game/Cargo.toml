@@ -6,3 +6,4 @@ edition.workspace = true
 [dependencies]
 tinr_engine.workspace = true
 tinr_platform.workspace = true
+bevy_ecs.workspace = true

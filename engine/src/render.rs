@@ -22,6 +22,8 @@ pub struct Sprite {
     pub layer: i32,
     /// Part of the atlas image to draw, in pixels: [x, y, w, h]. None = draw `shape` in `color`.
     pub region: Option<[f32; 4]>,
+    /// Drawn this far from the entity's position, in screen pixels (+y is down).
+    pub offset: Vec2,
 }
 
 impl Default for Sprite {
@@ -33,6 +35,7 @@ impl Default for Sprite {
             color: [255, 0, 0],
             layer: 0,
             region: None,
+            offset: Vec2::ZERO,
         }
     }
 }

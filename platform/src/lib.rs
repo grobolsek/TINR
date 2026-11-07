@@ -101,7 +101,7 @@ fn draw_sprites(time: Res<Time>, sprites: Query<(&Transform, &PrevTransform, &Sp
     list.sort_by_key(|(_, _, s)| s.layer);
     for (t, prev, sprite) in list {
         let from = prev.0.unwrap_or(t.pos);
-        let p = from.lerp(t.pos, alpha) + center;
+        let p = from.lerp(t.pos, alpha) + center + sprite.offset;
         let s = sprite.size;
         if let Some([x, y, w, h]) = sprite.region {
             let drawn = ATLAS.with(|a| {

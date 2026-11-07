@@ -3,6 +3,7 @@
 /// The engine's name, used by the game's window title.
 pub const NAME: &str = "FRI the ninja";
 
+pub mod animation;
 pub mod app;
 pub mod render;
 pub mod time;

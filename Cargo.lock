@@ -975,6 +975,14 @@ dependencies = [
 name = "tinr_game"
 version = "0.1.0"
 dependencies = [
+ "tinr_engine",
+ "tinr_platform",
+]
+
+[[package]]
+name = "tinr_platform"
+version = "0.1.0"
+dependencies = [
  "macroquad",
  "tinr_engine",
 ]

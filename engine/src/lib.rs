@@ -5,8 +5,10 @@ pub const NAME: &str = "FRI the ninja";
 
 pub mod app;
 pub mod determinism;
+pub mod input;
 pub mod lifetime;
 pub mod render;
+pub mod state;
 pub mod time;
 pub mod transform;
 

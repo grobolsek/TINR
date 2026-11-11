@@ -239,3 +239,30 @@ fn two_runs_with_the_same_seed_end_identical() {
     assert_eq!(run(5), run(5));
     assert_ne!(run(5), run(6));
 }
+
+#[test]
+fn states_gate_systems_and_run_enter_and_exit_once() {
+    use tinr_engine::app::{App, phase};
+    use tinr_engine::state::{AppState, OnEnter, OnExit, in_state};
+
+    #[derive(Resource, Default)]
+    struct Log(Vec<String>);
+
+    let mut app = App::new(60);
+    app.world.init_resource::<Log>();
+    app.add_systems(
+        phase::Gameplay,
+        (|mut l: ResMut<Log>| l.0.push("play".into())).run_if(in_state("Playing")),
+    );
+    app.add_systems(OnExit("Playing".into()), |mut l: ResMut<Log>| l.0.push("exit Playing".into()));
+    app.add_systems(OnEnter("GameOver".into()), |mut l: ResMut<Log>| {
+        l.0.push("enter GameOver".into())
+    });
+
+    app.tick();
+    app.world.resource_mut::<AppState>().set("GameOver");
+    app.tick(); // the change is applied at the end of this tick...
+    app.tick(); // ...so from here on the gated system no longer runs
+
+    assert_eq!(app.world.resource::<Log>().0, ["play", "play", "exit Playing", "enter GameOver"]);
+}

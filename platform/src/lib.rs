@@ -6,6 +6,7 @@ use tinr_engine::app::{App, phase};
 use tinr_engine::bevy_ecs::prelude::*;
 use tinr_engine::bevy_ecs::resource::IsResource;
 use tinr_engine::determinism::checksum;
+use tinr_engine::input::RawInput;
 use tinr_engine::render::{Shape, Sprite};
 use tinr_engine::time::Time;
 use tinr_engine::transform::{PrevTransform, Transform};
@@ -48,6 +49,7 @@ pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
 
         loop {
             let dt = if args.frames.is_some() { 1.0 / 60.0 } else { get_frame_time() as f64 };
+            read_input(&mut app.world);
             app.frame(dt);
             frames += 1;
             if Some(frames) == args.frames {
@@ -59,6 +61,29 @@ pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
             next_frame().await;
         }
     });
+}
+
+/// Copies Macroquad's keyboard and mouse state into the RawInput resource.
+fn read_input(world: &mut World) {
+    let center = vec2(screen_width(), screen_height()) / 2.0;
+    let mut input = world.resource_mut::<RawInput>();
+    input.down = get_keys_down().iter().map(key_name).collect();
+    input.pressed = get_keys_pressed().iter().map(key_name).collect();
+    for (button, name) in [(MouseButton::Left, "mouse_left"), (MouseButton::Right, "mouse_right")] {
+        if is_mouse_button_down(button) {
+            input.down.insert(name.into());
+        }
+        if is_mouse_button_pressed(button) {
+            input.pressed.insert(name.into());
+        }
+    }
+    let (mx, my) = mouse_position();
+    input.mouse = vec2(mx, my) - center;
+}
+
+/// KeyCode::Space -> "space", KeyCode::F5 -> "f5", KeyCode::A -> "a".
+fn key_name(key: &KeyCode) -> String {
+    format!("{key:?}").to_lowercase()
 }
 
 /// The same frames, without a window: for tests, CI and checking determinism.

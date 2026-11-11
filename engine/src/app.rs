@@ -1,5 +1,7 @@
 //! The App owns the World and runs the phases.
 
+use crate::input::RawInput;
+use crate::state::{AppState, apply_state_transition};
 use bevy_ecs::prelude::*;
 use bevy_ecs::schedule::{ScheduleLabel, SingleThreadedExecutor};
 use bevy_ecs::system::ScheduleSystem;
@@ -63,6 +65,8 @@ impl App {
         world.insert_resource(Time::new(fixed_hz));
         world.insert_resource(Rng::new(seed));
         world.init_resource::<SeqCounter>();
+        world.init_resource::<AppState>();
+        world.init_resource::<RawInput>();
 
         add_phase(&mut world, phase::Startup);
         add_phase(&mut world, phase::First);
@@ -79,6 +83,7 @@ impl App {
     }
 
     /// `app.add_systems(phase::Simulate, integrate)`, or several: `(a, b).chain()`.
+    /// Also works for OnEnter / OnExit schedules, which are created on first use.
     pub fn add_systems<M>(
         &mut self,
         phase: impl ScheduleLabel,
@@ -122,6 +127,7 @@ impl App {
         self.world.run_schedule(phase::Update);
         self.world.run_schedule(phase::Render);
         self.world.run_schedule(phase::Last);
+        apply_state_transition(&mut self.world);
         ticks
     }
 
@@ -133,6 +139,7 @@ impl App {
         self.world.run_schedule(phase::Collide);
         self.world.run_schedule(phase::Gameplay);
         self.world.run_schedule(phase::SyncPhase);
+        apply_state_transition(&mut self.world);
     }
 
     /// Runs Startup phase, once

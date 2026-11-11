@@ -2,6 +2,7 @@ use tinr_engine::Vec2;
 use tinr_engine::app::{App, phase};
 use tinr_engine::bevy_ecs::prelude::*;
 use tinr_engine::bevy_ecs::system::command;
+use tinr_engine::determinism::Rng;
 use tinr_engine::lifetime::{Lifetime, tick_lifetimes};
 use tinr_engine::render::Sprite;
 use tinr_engine::time::Time;
@@ -44,14 +45,15 @@ fn bounce(mut q: Query<(&mut Transform, &mut Velocity)>) {
     }
 }
 
-pub fn spawn_sparks(time: Res<Time>, mut commands: Commands) {
+pub fn spawn_sparks(time: Res<Time>, mut rng: ResMut<Rng>, mut commands: Commands) {
     if !time.tick.is_multiple_of(10) {
         return;
     }
-    let angle = time.tick as f32 * 0.7;
+    let angle = rng.range_f32(0.0, std::f32::consts::TAU);
+    let speed = rng.range_f32(80.0, 220.0);
     commands.spawn((
         Transform::default(),
-        Velocity { v: Vec2::from_angle(angle) * 180.0 },
+        Velocity { v: Vec2::from_angle(angle) * speed },
         Lifetime::secs(2.0),
         Sprite::circle(5.0, [250, 210, 90]),
     ));

@@ -1,6 +1,7 @@
 //! Part 1: the basic engine, tested from the outside like a game would use it.
 
 use bevy_ecs::prelude::*;
+use tinr_engine::lifetime::{Lifetime, tick_lifetimes};
 use tinr_engine::time::Time;
 
 #[test]
@@ -137,4 +138,104 @@ fn every_transform_gets_a_previous_position_for_drawing() {
     // Decide stored the old position, then Simulate moved the entity.
     assert_eq!(app.world.get::<PrevTransform>(e).unwrap().0, Some(tinr_engine::Vec2::ZERO));
     assert_eq!(app.world.get::<Transform>(e).unwrap().pos.x, 1.0);
+}
+
+#[test]
+fn structural_changes_wait_for_a_sync_point() {
+    use tinr_engine::app::{App, phase};
+    use tinr_engine::lifetime::Lifetime;
+
+    #[derive(Resource, Default)]
+    struct Seen(Vec<usize>);
+
+    fn spawn_one(mut commands: Commands) {
+        commands.spawn(Lifetime::secs(1.0));
+    }
+    fn count(q: Query<&Lifetime>, mut seen: ResMut<Seen>) {
+        seen.0.push(q.iter().count());
+    }
+
+    let mut app = App::new(60);
+    app.world.init_resource::<Seen>();
+    // Ordered, but told not to sync: `count` runs before the spawn is applied.
+    app.add_systems(phase::Decide, (spawn_one, count).chain_ignore_deferred());
+    // A later phase: the end of Decide was a sync point.
+    app.add_systems(phase::Simulate, count);
+    // Ordered with .chain(): bevy inserts a sync point between the two.
+    app.add_systems(phase::Gameplay, (spawn_one, count).chain());
+
+    app.tick();
+    // Decide's count saw nothing yet; Simulate saw the Decide spawn;
+    // Gameplay's count saw both spawns because of the chained sync point.
+    assert_eq!(app.world.resource::<Seen>().0, [0, 1, 2]);
+}
+
+#[test]
+fn lifetimes_despawn_through_commands() {
+    use tinr_engine::app::{App, phase};
+    use tinr_engine::lifetime::{Lifetime, tick_lifetimes};
+
+    let mut app = App::new(60);
+    app.add_systems(phase::Gameplay, tick_lifetimes);
+    let e = app.world.spawn(Lifetime::secs(0.04)).id(); // 2.4 ticks at 60 Hz
+
+    app.tick();
+    app.tick();
+    assert!(app.world.get_entity(e).is_ok());
+    app.tick();
+    assert!(app.world.get_entity(e).is_err());
+}
+
+#[test]
+fn the_same_seed_gives_the_same_numbers() {
+    use tinr_engine::determinism::Rng;
+
+    let draws = |seed| {
+        let mut rng = Rng::new(seed);
+        (0..5).map(|_| rng.range(0.0, 100.0).round()).collect::<Vec<_>>()
+    };
+    assert_eq!(draws(7), draws(7));
+    assert_ne!(draws(7), draws(8));
+}
+
+#[test]
+fn seq_is_spawn_order_even_when_bevy_reuses_slots() {
+    use tinr_engine::app::App;
+    use tinr_engine::determinism::Seq;
+    use tinr_engine::transform::Transform;
+
+    let mut app = App::new(60);
+    let a = app.world.spawn(Transform::at(1.0, 0.0)).id();
+    let b = app.world.spawn(Transform::at(2.0, 0.0)).id();
+    app.world.despawn(a);
+    let c = app.world.spawn(Transform::at(3.0, 0.0)).id(); // takes a's old slot
+
+    let mut q = app.world.query::<(Entity, &Seq)>();
+    let by_entity: Vec<Entity> = q.iter(&app.world).sort::<Entity>().map(|(e, _)| e).collect();
+    let by_seq: Vec<Entity> = q.iter(&app.world).sort::<&Seq>().map(|(e, _)| e).collect();
+    assert_eq!(by_entity, [c, b]); // slot order: c sits in the lower slot
+    assert_eq!(by_seq, [b, c]); // spawn order
+}
+
+#[test]
+fn two_runs_with_the_same_seed_end_identical() {
+    use tinr_engine::app::{App, phase};
+    use tinr_engine::determinism::{Rng, checksum};
+    use tinr_engine::transform::{Transform, Velocity, integrate};
+
+    fn spawn_random(mut rng: ResMut<Rng>, mut commands: Commands) {
+        let v = tinr_engine::Vec2::new(rng.range_f32(-100.0, 100.0), rng.range_f32(-100.0, 100.0));
+        commands.spawn((Transform::default(), Velocity { v }));
+    }
+    let run = |seed| {
+        let mut app = App::with_seed(60, seed);
+        app.add_systems(phase::Simulate, integrate);
+        app.add_systems(phase::Gameplay, spawn_random);
+        for _ in 0..120 {
+            app.frame(1.0 / 60.0);
+        }
+        checksum(&mut app.world)
+    };
+    assert_eq!(run(5), run(5));
+    assert_ne!(run(5), run(6));
 }

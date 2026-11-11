@@ -4,6 +4,8 @@
 use macroquad::prelude::*;
 use tinr_engine::app::{App, phase};
 use tinr_engine::bevy_ecs::prelude::*;
+use tinr_engine::bevy_ecs::resource::IsResource;
+use tinr_engine::determinism::checksum;
 use tinr_engine::render::{Shape, Sprite};
 use tinr_engine::time::Time;
 use tinr_engine::transform::{PrevTransform, Transform};
@@ -22,11 +24,14 @@ impl Default for Config {
 
 /// Opens a window, builds the App with `setup`, and runs one `app.frame()` per screen frame.
 //
-/// Command line: `--frames N` stops after N frames of exactly 1/60 s,
-/// `--screenshot out.png` saves the last frame.
+/// `--screenshot out.png` saves the last frame, `--seed S` seeds the Rng,
+/// `--headless` runs without a window and prints a summary.
 pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
     let Config { title, window_size: (w, h), fixed_hz } = config;
     let args = Args::parse();
+    if args.headless {
+        return run_headless(&args, setup);
+    }
     let conf = Conf {
         window_title: title.to_string(),
         window_width: w,
@@ -35,7 +40,7 @@ pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
     };
 
     macroquad::Window::from_config(conf, async move {
-        let mut app = App::new(fixed_hz);
+        let mut app = App::with_seed(fixed_hz, args.seed);
         app.add_systems(phase::Render, draw_sprites);
         setup(&mut app);
 
@@ -56,9 +61,27 @@ pub fn run(config: Config, setup: impl FnOnce(&mut App) + 'static) {
     });
 }
 
+/// The same frames, without a window: for tests, CI and checking determinism.
+fn run_headless(args: &Args, setup: impl FnOnce(&mut App)) {
+    let mut app = App::with_seed(60, args.seed);
+    setup(&mut app);
+    let frames = args.frames.unwrap_or(600);
+    for _ in 0..frames {
+        app.frame(1.0 / 60.0);
+    }
+    let ticks = app.world.resource::<Time>().tick;
+    // bevy keeps each resource (Time, Rng, ...) as an entity marked IsResource; skip those.
+    let entities =
+        app.world.query_filtered::<Entity, Without<IsResource>>().iter(&app.world).count();
+    let sum = checksum(&mut app.world);
+    println!("{frames} frames, {ticks} ticks, {entities} entities, checksum {sum:016x}");
+}
+
 struct Args {
     frames: Option<u32>,
     screenshot: Option<String>,
+    seed: u64,
+    headless: bool,
 }
 
 impl Args {
@@ -69,6 +92,8 @@ impl Args {
         Self {
             frames: value("--frames").and_then(|v| v.parse().ok()),
             screenshot: value("--screenshot"),
+            seed: value("--seed").and_then(|v| v.parse().ok()).unwrap_or(1),
+            headless: args.iter().any(|a| a == "--headless"),
         }
     }
 }

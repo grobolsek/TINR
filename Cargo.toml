@@ -12,7 +12,7 @@ edition = "2024"
 tinr_engine = { path = "engine" }
 tinr_platform = { path = "platform" }
 macroquad = "=0.4.16"
-# The same glam version Macroquad uses, so a Vec2 is the same type everywhere.
+rand_chacha = "=0.10.0"
 glam = "0.27"
 
 # Only the ECS from Bevy; "std" without the optional extras (reflection, multithreading).

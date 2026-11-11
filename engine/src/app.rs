@@ -4,6 +4,7 @@ use bevy_ecs::prelude::*;
 use bevy_ecs::schedule::{ScheduleLabel, SingleThreadedExecutor};
 use bevy_ecs::system::ScheduleSystem;
 
+use crate::determinism::{Rng, SeqCounter};
 use crate::time::Time;
 
 /// One schedule per phase of the frame. A system belongs to exactly one phase.
@@ -54,8 +55,14 @@ pub struct App {
 
 impl App {
     pub fn new(fixed_hz: u32) -> Self {
+        Self::with_seed(fixed_hz, 1)
+    }
+
+    pub fn with_seed(fixed_hz: u32, seed: u64) -> Self {
         let mut world = World::new();
         world.insert_resource(Time::new(fixed_hz));
+        world.insert_resource(Rng::new(seed));
+        world.init_resource::<SeqCounter>();
 
         add_phase(&mut world, phase::Startup);
         add_phase(&mut world, phase::First);

@@ -3,11 +3,12 @@
 use bevy_ecs::prelude::*;
 
 use crate::Vec2;
+use crate::determinism::Seq;
 use crate::time::Time;
 
-/// Position in the world. Every Transform automatically gets a PrevTransform.
+/// Position in the world. Every Transform automatically gets a PrevTransform and a Seq
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
-#[require(PrevTransform)]
+#[require(PrevTransform, Seq)]
 pub struct Transform {
     pub pos: Vec2,
 }

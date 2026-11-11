@@ -4,6 +4,7 @@
 pub const NAME: &str = "FRI the ninja";
 
 pub mod app;
+pub mod lifetime;
 pub mod render;
 pub mod time;
 pub mod transform;

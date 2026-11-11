@@ -1,7 +1,10 @@
 use tinr_engine::Vec2;
 use tinr_engine::app::{App, phase};
 use tinr_engine::bevy_ecs::prelude::*;
+use tinr_engine::bevy_ecs::system::command;
+use tinr_engine::lifetime::{Lifetime, tick_lifetimes};
 use tinr_engine::render::Sprite;
+use tinr_engine::time::Time;
 use tinr_engine::transform::{Transform, Velocity, integrate, store_previous};
 use tinr_platform::{Config, run};
 
@@ -14,6 +17,7 @@ fn main() {
 fn setup(app: &mut App) {
     app.add_systems(phase::Decide, store_previous);
     app.add_systems(phase::Simulate, (integrate, bounce).chain());
+    app.add_systems(phase::Gameplay, (spawn_sparks, tick_lifetimes));
 
     let boxes = [
         (Vec2::new(-200.0, -100.0), Vec2::new(150.0, 90.0), [230, 90, 80]),
@@ -38,4 +42,17 @@ fn bounce(mut q: Query<(&mut Transform, &mut Velocity)>) {
             t.pos.y = t.pos.y.clamp(-half.y, half.y);
         }
     }
+}
+
+pub fn spawn_sparks(time: Res<Time>, mut commands: Commands) {
+    if !time.tick.is_multiple_of(10) {
+        return;
+    }
+    let angle = time.tick as f32 * 0.7;
+    commands.spawn((
+        Transform::default(),
+        Velocity { v: Vec2::from_angle(angle) * 180.0 },
+        Lifetime::secs(2.0),
+        Sprite::circle(5.0, [250, 210, 90]),
+    ));
 }

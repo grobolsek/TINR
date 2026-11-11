@@ -27,7 +27,7 @@ const ENEMY_WALK: &[Frame] =
 /// so body and sword stay in step.
 /// `.at(12.0, 0.0)` draws the swing 12 atlas pixels to the right; tune these two numbers.
 const SWORD_ATTACK: &[Frame] =
-    &[frame(atlas::SWORD, 0.75), frame(atlas::SWORD_SWING, 0.25).at(12.0, 0.0)];
+    &[frame(atlas::SWORD, 0.75), frame(atlas::SWORD_SWING, 0.1).at(12.0, 0.0)];
 
 fn setup(app: &mut App) {
     app.add_systems(phase::Decide, store_previous);
@@ -41,7 +41,7 @@ fn setup(app: &mut App) {
             Transform::at(-100.0, 0.0),
             Velocity::new(20.0, 0.0),
             sprite(atlas::ENEMY_STATIC),
-            // Animation::new(ENEMY_WALK),
+            Animation::new(ENEMY_WALK),
         ))
         .id();
 
